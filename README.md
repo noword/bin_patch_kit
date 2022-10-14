@@ -102,3 +102,10 @@ assert empty_address < 0x00393000
 ```
 > ### 注意点
 * 注入的地址要用反编译工具确认地址下面的几个指令没有从其他地方跳转的情况出现
+* python 依赖库：
+  
+  [keystone-engine](https://pypi.org/project/keystone-engine/)
+
+  [capstone](https://pypi.org/project/capstone/)
+
+  [pyelftools](https://pypi.org/project/pyelftools/)
