@@ -46,7 +46,7 @@ class Patcher:
         self._io = io
         self._base = base
         self._arch_mode = arch_mode
-        self._assmmbler = keystone.Ks(*arch_mode.ks_arch_mode)
+        self._assembler = keystone.Ks(*arch_mode.ks_arch_mode)
         self._disassembler = capstone.Cs(*arch_mode.cs_arch_mode)
 
     # 以下 address 参数，均为不含 base 的，以 rom 为准的绝对地址
@@ -55,10 +55,10 @@ class Patcher:
             self._io.seek(address, os.SEEK_SET)
         return self._io.tell()
 
-    def assmble(self, asm, address=None):
+    def assemble(self, asm, address=None):
         # https://www.keystone-engine.org/docs/tutorial.html
         address = self.seek(address)
-        encoding, count = self._assmmbler.asm(asm, self._base + address)
+        encoding, count = self._assembler.asm(asm, self._base + address)
         # print(f'{self._base + address:08x} {bytes(encoding).hex()}\t{asm}')
         self._io.write(bytes(encoding))
         return len(encoding)
@@ -94,7 +94,7 @@ class Patcher:
         raise NotImplementedError
 
     def _fix_opstr(self, instr, src_address, dst_address):
-        return self.assmble(instr, dst_address)
+        return self.assemble(instr, dst_address)
 
     def relocate_opcodes(self, size, src_address, address=None):
         if address is None:

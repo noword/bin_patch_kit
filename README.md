@@ -94,7 +94,7 @@ for job in JOBS:
 
     if 'patch' in job:
         for p in job['patch']:
-            patcher.assmble(p['asm'], p['address'])
+            patcher.assemble(p['asm'], p['address'])
 
     del patcher
 
