@@ -58,9 +58,9 @@ __attribute__((target("thumb"))) void hooker_0000yyyy(struct Registers *regs)
 ```python
 from bin_patch_kit import *
 
-ELF = ElfHelper('build/main.o')
-
+ELF_PATH = 'build/main.o'
 ROM_PATH = '../rom/XXX.gba'
+EMPTY_OFFSET = 0x003919a0
 
 JOBS = [
     {
@@ -74,31 +74,12 @@ JOBS = [
     }
 ]
 
-empty_address = 0x003919a0
+patch_rom(rom_path=ROM_PATH,
+          rom_base=GBA_BASE,
+          code_path=ELF_PATH,
+          empty_address=EMPTY_OFFSET,
+          jobs=JOBS)
 
-for job in JOBS:
-    if job['arch'] == 'arm':
-        patcher = ArmPatcher(open(ROM_PATH, 'rb+'), base=0x08000000)
-    elif job['arch'] == 'thumb':
-        patcher = ThumbPatcher(open(ROM_PATH, 'rb+'), base=0x08000000)
-    else:
-        raise TypeError
-
-    if 'hooker' in job:
-        for h in job['hooker']:
-            codes = ELF.get_opcodes(h['func'])
-            size = patcher.set_hooker(target_address=h['address'],
-                                      empty_address=empty_address,
-                                      function_codes=codes)
-            empty_address = (empty_address + size + 0xf) & 0xfffffff0
-
-    if 'patch' in job:
-        for p in job['patch']:
-            patcher.assemble(p['asm'], p['address'])
-
-    del patcher
-
-assert empty_address < 0x00393000
 ```
 > ### 注意点
 * 注入的地址要用反编译工具确认地址下面的几个指令没有从其他地方跳转的情况出现

@@ -23,6 +23,10 @@ def ALIGN_4(addre):
     return addre & 0xFFFFFFFC
 
 
+def ALIGN_UP(size, align):
+    return ((size + align - 1) & ~(align - 1))
+
+
 class ArmPatcher(Patcher):
     def __init__(self, io, base):
         super().__init__(io, base, ArchMode(ARCH.ARM))
