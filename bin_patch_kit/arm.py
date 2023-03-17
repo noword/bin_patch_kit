@@ -143,7 +143,7 @@ class ArmPatcher(Patcher):
         return length
 
     BRANCH_RE = re.compile(
-        r'^((?:bl?x?(?:eq|ne|cs|hs|cc|lo|mi|pl|vs|vc|hi|ls|ge|lt|gt|le|al)?)|cbz|cbnz)(?:\\.w)? (.*)#([\\dabcdefx]+)')
+        r'^((?:bl?x?(?:eq|ne|cs|hs|cc|lo|mi|pl|vs|vc|hi|ls|ge|lt|gt|le|al)?)|cbz|cbnz)(?:\.w)? (.*)#([\dabcdefx]+)')
 
     def __fix_branch(self, instr, src_address, dst_address):
         length = 0
@@ -159,15 +159,15 @@ class ArmPatcher(Patcher):
                 length = self.jump_patch(addr, dst_address)
             elif cmd in ('cbz', 'cbnz'):
                 adjust1, adjust2 = (4, 0xa) if self._arch_mode.arch == ARCH.ARM_THUMB else (8, 0xc)
-                length = self.assemble(f'{cmd} {reg} #0x{dst_address+adjust1:08x}', dst_address)
-                length += self.assemble(f'b #0x{dst_address+length+adjust2:08x}')
-                length + self.jump_patch(addr)
+                length = self.assemble(f'{cmd} {reg} #0x{self._base+dst_address+adjust1:08x}', dst_address)
+                length += self.assemble(f'b #0x{self._base+dst_address+length+adjust2:08x}')
+                length += self.jump_patch(addr - self._base)
             else:
                 # conditional jmp
                 adjust1, adjust2 = (4, 0xa) if self._arch_mode.arch == ARCH.ARM_THUMB else (8, 0xc)
-                length = self.assemble(f'{cmd} #0x{dst_address+adjust1:08x}')
-                length += self.assemble(f'b #0x{dst_address+length+adjust2:08x}')
-                length + self.jump_patch(addr)
+                length = self.assemble(f'{cmd} #0x{self._base+dst_address+adjust1:08x}', dst_address)
+                length += self.assemble(f'b #0x{self._base+dst_address+length+adjust2:08x}')
+                length += self.jump_patch(addr - self._base)
 
         return length
 

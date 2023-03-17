@@ -6,16 +6,17 @@ GBA_BASE = 0x08000000
 NDS_BASE = 0x02000000
 
 
-def patch_rom(rom_path: str, rom_base: int, code_path: str, empty_address: int, jobs: dict):
+def patch_rom(rom_path: str, rom_base: int, code_path: str, empty_address: int, jobs: list):
     '''
     jobs = [
-        {
-            'arch': str `arm/thumb`,
-            'hooker': [ ['address': int `rom address (absolute address)`, 'func': str `function name in code` ], ... ]
-            'patch':  [ ['address': int `rom address (absolute address)`, 'asm': str `asm codes` ], ... ]
-        },
+            {'arch': str `arm/thumb`,
+             'type': str `hook/patch`,
+             'address': int `rom address (absolute address)`,
+             'func': str `function name in code (hook only)`,
+             'asm': str `asm codes (patch only)`
+            }
         ...
-    ]
+        ]
     '''
 
     elf = ElfHelper(code_path)
@@ -27,18 +28,16 @@ def patch_rom(rom_path: str, rom_base: int, code_path: str, empty_address: int, 
         else:
             raise TypeError(f"Not support architecture: {job['arch']}")
 
-        if 'hooker' in job:
-            for h in job['hooker']:
-                codes = elf.get_opcodes(h['func'])
-                size = patcher.set_hooker(target_address=h['address'],
-                                          empty_address=empty_address,
-                                          function_codes=codes)
-                empty_address = ALIGN_UP(empty_address + size, 0x10)
-
-        if 'patch' in job:
-            for p in job['patch']:
-                patcher.assemble(p['asm'], p['address'])
-
+        if job['type'] == 'hook':
+            codes = elf.get_opcodes(job['func'])
+            size = patcher.set_hooker(target_address=job['address'],
+                                      empty_address=empty_address,
+                                      function_codes=codes)
+            empty_address = ALIGN_UP(empty_address + size, 0x10)
+        elif job['type'] == 'patch':
+            patcher.assemble(job['asm'], job['address'])
+        else:
+            raise TypeError(f"unknown type: {job['type']}")
         del patcher
 
 

@@ -13,8 +13,7 @@ target               empty space
 | ...       | <---+  | call hook function   | -----> +--------+ |
 |           |     |  | pop all regs         | <---+  | ...    | |
 |           |     |  | run old instructions |     |  |        | |
-|           |     +- | jmp back             |     +- |        | |
-|           |        |                      |        +--------+ |
+|           |     +- | jmp back             |     +- +--------+ |
 +-----------+        +------------------------------------------+
 ```
 由于所有寄存器入栈并作为参数传给了 ```function```，所以在用 C 写的 ```function``` 内可以任意读取和修改寄存器。
@@ -63,15 +62,9 @@ ROM_PATH = '../rom/XXX.gba'
 EMPTY_OFFSET = 0x003919a0
 
 JOBS = [
-    {
-        'arch': 'arm',
-        'hooker': [{'address': 0x5b7c, 'func': 'hooker_0000xxxx'}],
-    },
-    {
-        'arch': 'thumb',
-        'hooker': [{'address': 0x2190, 'func': 'hooker_0000yyyy'}],
-        'patch': [{'address': 0x186c, 'asm': 'mov r8, r8; mov r8, r8;'}, ]
-    }
+    {'arch': 'arm', 'type': 'hook', 'address': 0x5b7c, 'func': 'hooker_0000xxxx'},
+    {'arch': 'thumb', 'type': 'hooker', 'address': 0x2190, 'func': 'hooker_0000yyyy'},
+    {'arch': 'thumb', 'type': 'patch', 'address': 0x186c, 'asm': 'mov r8, r8; mov r8, r8;'},
 ]
 
 patch_rom(rom_path=ROM_PATH,
