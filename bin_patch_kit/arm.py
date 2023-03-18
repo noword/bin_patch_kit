@@ -164,7 +164,7 @@ class ArmPatcher(Patcher):
                 length += self.jump_patch(addr - self._base)
             else:
                 # conditional jmp
-                adjust1, adjust2 = (4, 0xa) if self._arch_mode.arch == ARCH.ARM_THUMB else (8, 0xc)
+                adjust1, adjust2 = (4, 0xe) if self._arch_mode.arch == ARCH.ARM_THUMB else (8, 0xc)
                 length = self.assemble(f'{cmd} #0x{self._base+dst_address+adjust1:08x}', dst_address)
                 length += self.assemble(f'b #0x{self._base+dst_address+length+adjust2:08x}')
                 length += self.jump_patch(addr - self._base)
@@ -258,7 +258,7 @@ class ThumbPatcher(Thumb2Patcher):
                                    'pop {r0, pc};')
             if not TEST_ALIGN_4(self._io.tell()):
                 length += self.nop_patch(1)
-            self._io.write(pack('I', self._base + CLEAR_BIT0(dst_address)))
+            self._io.write(pack('I', self._base + SET_BIT0(dst_address)))
             length += 4
         return length
 

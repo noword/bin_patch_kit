@@ -16,7 +16,8 @@ target               empty space
 |           |     +- | jmp back             |     +- +--------+ |
 +-----------+        +------------------------------------------+
 ```
-由于所有寄存器入栈并作为参数传给了 ```function```，所以在用 C 写的 ```function``` 内可以任意读取和修改寄存器。
+由于所有寄存器入栈并作为参数传给了 ```function```，所以在 ```function``` 内除了修改内存外，还可以任意读取和修改当前状态的寄存器。
+这个 ```function``` 可以用 C 写，注入 rom 的工作用 python 完成。
 
 ## 怎么用？
 
@@ -52,6 +53,25 @@ __attribute__((target("thumb"))) void hooker_0000yyyy(struct Registers *regs)
 * 如果是 hook 在 arm 指令上，函数前加 ``` __attribute__((target("arm")))``` 
 * 如果是 hook 在 thumb 指令上，函数前加 ``` __attribute__((target("thumb")))```
 * 函数内要调用的其他函数，必须是 ```inline``` 的，所以不能使用一些最基本的 libc 函数，如 memcpy, memset 等，需要自己实现。
+* 如需使用变量保存状态等信息或需使用字符串，建议把所有要使用的变量和字符串定义在一个 struct 内，然后找一处空内存，把该 struct 指向空内存。
+  例如：
+
+```c
+struct VARS
+{
+    char font_name[0x10];  // 字符串的内容，可另外用 python 写入 rom
+    uint32_t tile_count;
+    uint32_t status;
+    uint32_t file;
+};
+
+...
+#define VARS_OFFSET 0x1234568
+struct VARS *var = (struct VARS *)VARS_OFFSET;
+...
+
+```
+
 
 ### 2. 写一个 python 程序
 ```python
