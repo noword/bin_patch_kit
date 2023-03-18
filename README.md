@@ -46,9 +46,8 @@ __attribute__((target("thumb"))) void hooker_0000yyyy(struct Registers *regs)
 }
 ```
 
-在 [devkitPro](https://github.com/devkitPro/installer/releases) 中编译。
-
 > ### 注意点:
+* 程序用 [devkitPro](https://github.com/devkitPro/installer/releases) 编译。
 * Makefile 可以从 gba 的 examples 里面 copy 一个过来, 要在 CFLAG 里加上 -fno-builtin
 * 如果是 hook 在 arm 指令上，函数前加 ``` __attribute__((target("arm")))``` 
 * 如果是 hook 在 thumb 指令上，函数前加 ``` __attribute__((target("thumb")))```
