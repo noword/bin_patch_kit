@@ -48,29 +48,37 @@ __attribute__((target("thumb"))) void hooker_0000yyyy(struct Registers *regs)
 
 > ### 注意点:
 * 程序用 [devkitPro](https://github.com/devkitPro/installer/releases) 编译。
-* Makefile 可以从 gba 的 examples 里面 copy 一个过来, 要在 CFLAG 里加上 -fno-builtin
+* Makefile 可以从对应平台的 examples 里面 copy 一个过来, 要在 CFLAG 里加上 -fno-builtin
 * 如果是 hook 在 arm 指令上，函数前加 ``` __attribute__((target("arm")))``` 
 * 如果是 hook 在 thumb 指令上，函数前加 ``` __attribute__((target("thumb")))```
 * 函数内要调用的其他函数，必须是 ```inline``` 的，所以不能使用一些最基本的 libc 函数，如 memcpy, memset 等，需要自己实现。
 * 如需使用变量保存状态等信息或需使用字符串，建议把所有要使用的变量和字符串定义在一个 struct 内，然后找一处空内存，把该 struct 指向空内存。
   例如：
+    ```c
+    struct VARS
+    {
+        char font_name[0x10];  // 字符串的内容，需另外用 python 写入 rom
+        uint32_t tile_count;
+        uint32_t status;
+        uint32_t file;
+    };
 
-```c
-struct VARS
-{
-    char font_name[0x10];  // 字符串的内容，可另外用 python 写入 rom
-    uint32_t tile_count;
-    uint32_t status;
-    uint32_t file;
-};
+    ...
+    #define VARS_OFFSET 0x1234568
+    struct VARS *var = (struct VARS *)VARS_OFFSET;
+    ...
 
-...
-#define VARS_OFFSET 0x1234568
-struct VARS *var = (struct VARS *)VARS_OFFSET;
-...
+    ```
 
-```
-
+* 可以在程序中加入
+  ```c
+  #define ENABLE_LOGGING
+  #include "log.h"
+  ...
+  LOG("some message")
+  ...
+  ```
+  使用`LOG()`来记录日志（仅在[No$GBA](https://www.nogba.com/)模拟器中有效，菜单 `Windows` => `TTY Debug Messages` 查看日志）
 
 ### 2. 写一个 python 程序
 ```python
@@ -82,7 +90,7 @@ EMPTY_OFFSET = 0x003919a0
 
 JOBS = [
     {'arch': 'arm', 'type': 'hook', 'address': 0x5b7c, 'func': 'hooker_0000xxxx'},
-    {'arch': 'thumb', 'type': 'hooker', 'address': 0x2190, 'func': 'hooker_0000yyyy'},
+    {'arch': 'thumb', 'type': 'hook', 'address': 0x2190, 'func': 'hooker_0000yyyy'},
     {'arch': 'thumb', 'type': 'patch', 'address': 0x186c, 'asm': 'mov r8, r8; mov r8, r8;'},
 ]
 
