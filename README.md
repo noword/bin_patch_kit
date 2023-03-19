@@ -48,7 +48,7 @@ __attribute__((target("thumb"))) void hooker_0000yyyy(struct Registers *regs)
 
 > ### 注意点:
 * 程序用 [devkitPro](https://github.com/devkitPro/installer/releases) 编译。
-* Makefile 可以从对应平台的 examples 里面 copy 一个过来, 要在 CFLAG 里加上 -fno-builtin
+* Makefile 可以从对应平台的 examples 里面 copy 一个过来, 要在 CFLAGS 里加上 -fno-builtin
 * 如果是 hook 在 arm 指令上，函数前加 ``` __attribute__((target("arm")))``` 
 * 如果是 hook 在 thumb 指令上，函数前加 ``` __attribute__((target("thumb")))```
 * 函数内要调用的其他函数，必须是 ```inline``` 的，所以不能使用一些最基本的 libc 函数，如 memcpy, memset 等，需要自己实现。
