@@ -51,8 +51,8 @@ __attribute__((target("thumb"))) void hooker_0000yyyy(struct Registers *regs)
 * Makefile 可以从对应平台的 examples 里面 copy 一个过来, 要在 CFLAGS 里加上 -fno-builtin
 * 如果是 hook 在 arm 指令上，函数前加 ``` __attribute__((target("arm")))``` 
 * 如果是 hook 在 thumb 指令上，函数前加 ``` __attribute__((target("thumb")))```
-* 函数内要调用的其他函数，必须是 ```inline``` 的，所以不能使用一些最基本的 libc 函数，如 memcpy, memset 等，需要自己实现。
-* 如需使用变量保存状态等信息或需使用字符串，建议把所有要使用的变量和字符串定义在一个 struct 内，然后找一处空内存，把该 struct 指向空内存。
+* 函数内要调用的其他函数，必须是 ```inline``` 的，所以不能使用一些最基本的 libc 函数，如 memcpy, memset 等，要用的话需要自己来实现一个。
+* 如需使用变量保存状态等信息或需使用字符串，建议把所有要使用的变量和字符串定义在一个 struct 内，然后找一处空内存，在函数内把该 struct 指向空内存。
   例如：
     ```c
     struct VARS
@@ -62,11 +62,12 @@ __attribute__((target("thumb"))) void hooker_0000yyyy(struct Registers *regs)
         uint32_t status;
         uint32_t file;
     };
-
-    ...
+    
     #define VARS_OFFSET 0x1234568
+    
+    // ...
     struct VARS *var = (struct VARS *)VARS_OFFSET;
-    ...
+    // ...
 
     ```
 
