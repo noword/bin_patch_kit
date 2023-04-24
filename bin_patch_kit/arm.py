@@ -227,15 +227,25 @@ class ThumbPatcher(Thumb2Patcher):
         return abs(addr1 - addr2) < 0x800
 
     def push_all_regs(self, address=None):
-        return self.assemble('sub sp, 0x1c;'  # skip r8-r15
+        # return self.assemble('sub sp, 0x1c;'  # skip r8-r15
+        #                      'push {r0-r7};'
+        #                      'sub sp, 4;',  # skip cpsr
+        #                      address)
+        return self.assemble('mov r12, r0;'
+                             'mov r0, sp;'
+                             'push {r0};'
+                             'mov r0, lr;'
+                             'push {r0};'
+                             'sub sp, 0x14;'  # skip r8-r12
+                             'mov r0, r12;'
                              'push {r0-r7};'
                              'sub sp, 4;',  # skip cpsr
                              address)
 
     def pop_all_regs(self, address=None):
-        return self.assemble('add sp, 4;'
+        return self.assemble('add sp, 4;'  # skip cpsr
                              'pop {r0-r7};'
-                             'add sp, 0x1c;',
+                             'add sp, 0x1c;',  # skip restore
                              address)
 
     def _get_jmp_patch_size(self, dst_address, address):
