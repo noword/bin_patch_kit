@@ -24,7 +24,7 @@ def ALIGN_4(addre):
 
 
 def ALIGN_UP(size, align):
-    return ((size + align - 1) & ~(align - 1))
+    return (size + align - 1) & ~(align - 1)
 
 
 class ArmPatcher(Patcher):
@@ -38,18 +38,12 @@ class ArmPatcher(Patcher):
         return length
 
     def push_all_regs(self, address=None):
-        return self.assemble('str sp, [sp, #-4];'
-                             'sub sp, #4;'
-                             'push {r0-r12, lr};'
-                             'mrs r0, cpsr;'
-                             'push {r0};',
-                             address)
+        return self.assemble(
+            'str sp, [sp, #-4];' 'sub sp, #4;' 'push {r0-r12, lr};' 'mrs r0, cpsr;' 'push {r0};', address
+        )
 
     def pop_all_regs(self, address=None):
-        return self.assemble('pop {r0};'
-                             'msr cpsr, r0;'
-                             'pop {r0-r12, lr};'
-                             'add sp, #4;', address)
+        return self.assemble('pop {r0};' 'msr cpsr, r0;' 'pop {r0-r12, lr};' 'add sp, #4;', address)
 
     def _in_range(self, addr1, addr2):
         return abs(addr1 - addr2) < 0x2000000
@@ -75,9 +69,7 @@ class ArmPatcher(Patcher):
         if self._in_range(address, dst_address):
             length = self.assemble(f'bl #0x{self._base+dst_address:x}')
         else:
-            length = self.assemble('add lr, pc, #4;'
-                                   'ldr pc, [pc, #-4];',
-                                   address)
+            length = self.assemble('add lr, pc, #4;' 'ldr pc, [pc, #-4];', address)
             self._io.write(pack('<I', self._base + dst_address))
             length += 4
         return length
@@ -91,6 +83,33 @@ class ArmPatcher(Patcher):
         self.call_patch(self._io.tell() + 0x10)  # we'll rewrite it later
         self.pop_all_regs()
         self.relocate_opcodes(size, target_address)
+        self.jump_patch(target_address + size)
+
+        func_addr = self._io.tell()
+        self._io.write(function_codes)
+        size = self._io.tell() - empty_address
+        self.call_patch(func_addr, call_addr)
+
+        self.jump_patch(empty_address, target_address)
+        return size
+
+    def set_function_hooker(self, target_address: int, empty_address: int, function_codes: bytes):
+        size = self._get_jmp_patch_size(target_address, empty_address)
+        self.push_all_regs(empty_address)
+        self.assemble('mov r0, sp')
+        call_addr = self._io.tell()
+        self.call_patch(self._io.tell() + 0x10)  # we'll rewrite it later
+        # print('%x' % self._io.tell())
+        # if 'Thumb' in type(self).__name__:
+        #     self.assemble(f'cbz r0, #0x{self._io.tell()+0x10:08x}')
+        # else:
+        self.assemble('cmp r0, 0')
+        self.assemble(f'beq #0x{self._base+self._io.tell()+0x1c:08x}')
+        self.pop_all_regs()
+        self.assemble('mov pc, lr')
+        self.pop_all_regs()
+        self.relocate_opcodes(size, target_address)
+
         self.jump_patch(target_address + size)
 
         func_addr = self._io.tell()
@@ -131,19 +150,21 @@ class ArmPatcher(Patcher):
                 if self._arch_mode == ARCH.ARM_THUMB and TEST_ALIGN_4(dst_address):
                     length = self.nop_patch(1, dst_address)
 
-                length += self.assemble(f'push {{ {reg} }};'
-                                        f'ldr {reg}, [pc, #{adjust1}];'
-                                        f'{header}{reg}{tail};'
-                                        f'pop {{ {reg} }};'
-                                        f'b #0x{self._base+self._io.tell()+ adjust2:x};'
-                                        )
+                length += self.assemble(
+                    f'push {{ {reg} }};'
+                    f'ldr {reg}, [pc, #{adjust1}];'
+                    f'{header}{reg}{tail};'
+                    f'pop {{ {reg} }};'
+                    f'b #0x{self._base+self._io.tell()+ adjust2:x};'
+                )
                 self._io.write(pack('I', self._base + pc))
                 length += 4
 
         return length
 
     BRANCH_RE = re.compile(
-        r'^((?:bl?x?(?:eq|ne|cs|hs|cc|lo|mi|pl|vs|vc|hi|ls|ge|lt|gt|le|al)?)|cbz|cbnz)(?:\.w)? (.*)#([\dabcdefx]+)')
+        r'^((?:bl?x?(?:eq|ne|cs|hs|cc|lo|mi|pl|vs|vc|hi|ls|ge|lt|gt|le|al)?)|cbz|cbnz)(?:\.w)? (.*)#([\dabcdefx]+)'
+    )
 
     def __fix_branch(self, instr, src_address, dst_address):
         length = 0
@@ -158,13 +179,13 @@ class ArmPatcher(Patcher):
             elif cmd in ('b', 'bx'):
                 length = self.jump_patch(addr, dst_address)
             elif cmd in ('cbz', 'cbnz'):
-                adjust1, adjust2 = (4, 0xa) if self._arch_mode.arch == ARCH.ARM_THUMB else (8, 0xc)
+                adjust1, adjust2 = (4, 0xA) if self._arch_mode.arch == ARCH.ARM_THUMB else (8, 0xC)
                 length = self.assemble(f'{cmd} {reg} #0x{self._base+dst_address+adjust1:08x}', dst_address)
                 length += self.assemble(f'b #0x{self._base+dst_address+length+adjust2:08x}')
                 length += self.jump_patch(addr - self._base)
             else:
                 # conditional jmp
-                adjust1, adjust2 = (4, 0xe) if self._arch_mode.arch == ARCH.ARM_THUMB else (8, 0xc)
+                adjust1, adjust2 = (4, 0xE) if self._arch_mode.arch == ARCH.ARM_THUMB else (8, 0xC)
                 length = self.assemble(f'{cmd} #0x{self._base+dst_address+adjust1:08x}', dst_address)
                 length += self.assemble(f'b #0x{self._base+dst_address+length+adjust2:08x}')
                 length += self.jump_patch(addr - self._base)
@@ -231,30 +252,44 @@ class ThumbPatcher(Thumb2Patcher):
         #                      'push {r0-r7};'
         #                      'sub sp, 4;',  # skip cpsr
         #                      address)
-        return self.assemble('mov r12, r0;'
-                             'mov r0, sp;'
-                             'push {r0};'
-                             'mov r0, lr;'
-                             'push {r0};'
-                             'sub sp, 0x14;'  # skip r8-r12
-                             'mov r0, r12;'
-                             'push {r0-r7};'
-                             'sub sp, 4;',  # skip cpsr
-                             address)
+        return self.assemble(
+            'mov r12, r0;'
+            'mov r0, sp; push {r0};'
+            'mov r0, lr; push {r0};'
+            'sub sp, 4;'  # skip r12
+            'mov r0, r11; push {r0};'
+            'mov r0, r10; push {r0};'
+            'mov r0, r9; push {r0};'
+            'mov r0, r8; push {r0};'
+            'mov r0, r12;'
+            'push {r0-r7};'
+            'sub sp, 4;',  # skip cpsr
+            address,
+        )
 
     def pop_all_regs(self, address=None):
-        return self.assemble('add sp, 4;'  # skip cpsr
-                             'pop {r0-r7};'
-                             'add sp, 0x1c;',  # skip restore
-                             address)
+        return self.assemble(
+            'add sp, 4;'  # skip cpsr
+            'pop {r0-r7};'
+            'mov r12, r0;'
+            'pop {r0}; mov r8, r0;'
+            'pop {r0}; mov r9, r0;'
+            'pop {r0}; mov r10, r0;'
+            'pop {r0}; mov r11, r0;'
+            'add sp, 0x4;'
+            'pop {r0}; mov lr, r0;'
+            'pop {r0}; mov sp, r0;'
+            'mov r0, r12;',
+            address,
+        )
 
     def _get_jmp_patch_size(self, dst_address, address):
         if self._in_range(dst_address, address):
             return 2
         elif dst_address & 2 == 0:
-            return 0xc
+            return 0xC
         else:
-            return 0xe
+            return 0xE
 
     def jump_patch(self, dst_address, address=None):
         address = self.seek(address)
@@ -262,10 +297,7 @@ class ThumbPatcher(Thumb2Patcher):
         if self._in_range(address, dst_address):
             length = self.assemble(f'b #0x{self._base+dst_address:x}')
         else:
-            length = self.assemble('push {r0, r1};'
-                                   'ldr r0, [pc, #4];'
-                                   'str r0, [sp, #4];'
-                                   'pop {r0, pc};')
+            length = self.assemble('push {r0, r1};' 'ldr r0, [pc, #4];' 'str r0, [sp, #4];' 'pop {r0, pc};')
             if not TEST_ALIGN_4(self._io.tell()):
                 length += self.nop_patch(1)
             self._io.write(pack('I', self._base + SET_BIT0(dst_address)))
@@ -278,14 +310,15 @@ class ThumbPatcher(Thumb2Patcher):
         if self._in_range(address, dst_address):
             length = self.assemble(f'bl #0x{self._base+dst_address:x}')
         else:
-            length = self.assemble('push {r0, r1};'
-                                   'mov r0, pc;'
-                                   'adds r0, #0xc;'
-                                   'mov lr, r0;'
-                                   'ldr r0, [pc, #4];'
-                                   'str r0, [sp, #4];'
-                                   'pop {r0, pc};'
-                                   )
+            length = self.assemble(
+                'push {r0, r1};'
+                'mov r0, pc;'
+                'adds r0, #0xc;'
+                'mov lr, r0;'
+                'ldr r0, [pc, #4];'
+                'str r0, [sp, #4];'
+                'pop {r0, pc};'
+            )
             if not TEST_ALIGN_4(self._io.tell()):
                 length += self.nop_patch(1)
             self._io.write(pack('I', self._base + CLEAR_BIT0(dst_address)))

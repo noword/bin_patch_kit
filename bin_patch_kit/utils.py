@@ -1,6 +1,7 @@
 import re
 from .elf import ElfHelper
 from .arm import ArmPatcher, ThumbPatcher, ALIGN_UP
+import os
 
 GBA_BASE = 0x08000000
 NDS_BASE = 0x02000000
@@ -10,7 +11,7 @@ def patch_rom(rom_path: str, rom_base: int, code_path: str, empty_address: int, 
     '''
     jobs = [
             {'arch': str `arm/thumb`,
-             'type': str `hook/patch`,
+             'type': str `hook/hook_func/patch`,
              'address': int `rom address (absolute address)`,
              'func': str `function name in code (hook only)`,
              'asm': str `asm codes (patch only)`
@@ -18,8 +19,8 @@ def patch_rom(rom_path: str, rom_base: int, code_path: str, empty_address: int, 
         ...
         ]
     '''
-
-    elf = ElfHelper(code_path)
+    if code_path:
+        elf = ElfHelper(code_path)
     for job in jobs:
         if job['arch'] == 'arm':
             patcher = ArmPatcher(open(rom_path, 'rb+'), base=rom_base)
@@ -30,9 +31,13 @@ def patch_rom(rom_path: str, rom_base: int, code_path: str, empty_address: int, 
 
         if job['type'] == 'hook':
             codes = elf.get_opcodes(job['func'])
-            size = patcher.set_hooker(target_address=job['address'],
-                                      empty_address=empty_address,
-                                      function_codes=codes)
+            size = patcher.set_hooker(target_address=job['address'], empty_address=empty_address, function_codes=codes)
+            empty_address = ALIGN_UP(empty_address + size, 0x10)
+        elif job['type'] == 'hook_func':
+            codes = elf.get_opcodes(job['func'])
+            size = patcher.set_function_hooker(
+                target_address=job['address'], empty_address=empty_address, function_codes=codes
+            )
             empty_address = ALIGN_UP(empty_address + size, 0x10)
         elif job['type'] == 'patch':
             patcher.assemble(job['asm'], job['address'])

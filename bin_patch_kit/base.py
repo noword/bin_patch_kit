@@ -18,7 +18,7 @@ class ArchMode:
         ARCH.ARM_THUMB: (keystone.KS_ARCH_ARM, keystone.KS_MODE_THUMB),
         ARCH.ARM64: (keystone.KS_ARCH_ARM64, keystone.KS_MODE_LITTLE_ENDIAN),
         ARCH.X86: (keystone.KS_ARCH_X86, keystone.KS_MODE_32),
-        ARCH.X86_64: (keystone.KS_ARCH_X86, keystone.KS_MODE_64)
+        ARCH.X86_64: (keystone.KS_ARCH_X86, keystone.KS_MODE_64),
     }
 
     CS_ARCH_MODE = {
@@ -26,7 +26,7 @@ class ArchMode:
         ARCH.ARM_THUMB: (capstone.CS_ARCH_ARM, capstone.CS_MODE_THUMB),
         ARCH.ARM64: (capstone.CS_ARCH_ARM64, capstone.CS_MODE_LITTLE_ENDIAN),
         ARCH.X86: (capstone.CS_ARCH_X86, capstone.CS_MODE_32),
-        ARCH.X86_64: (capstone.CS_ARCH_X86, capstone.CS_MODE_64)
+        ARCH.X86_64: (capstone.CS_ARCH_X86, capstone.CS_MODE_64),
     }
 
     def __init__(self, arch: ARCH):
@@ -59,7 +59,7 @@ class Patcher:
         # https://www.keystone-engine.org/docs/tutorial.html
         address = self.seek(address)
         encoding, count = self._assembler.asm(asm, self._base + address)
-        # print(f'{self._base + address:08x} {bytes(encoding).hex()}\t{asm}')
+        # print(f'{self._base + address:08x} {bytes(encoding).hex()}\t\t{asm}')
         self._io.write(bytes(encoding))
         return len(encoding)
 
@@ -109,19 +109,39 @@ class Patcher:
             addr += self._fix_opstr(f'{r.mnemonic} {r.op_str}', src_addr, addr)
             src_addr += r.size
 
+        self._io.seek(addr, os.SEEK_SET)
         return addr - address
 
     def set_hooker(self, target_address: int, empty_address: int, function_codes: bytes):
         '''
-            target                          empty space
-            +----------------------+        +--------------------------------------------------------+
-            | jmp empty            | ---->  | push all regs        |        function                 |
-            | ...                  | <---+  | call hook function   | -----> +----------------------+ |
-            |                      |     |  | pop all regs         | <---+  | ...                  | |
-            |                      |     |  | run old instructions |     |  |                      | |
-            |                      |     +- | jmp back             |     +- |                      | |
-            |                      |        |                      |        +----------------------+ |
-            +----------------------+        +--------------------------------------------------------+
+        target                          empty space
+        +----------------------+        +--------------------------------------------------------+
+        | jmp empty            | ---->  | push all regs        |        function                 |
+        | ...                  | <---+  | call hook function   | -----> +----------------------+ |
+        |                      |     |  | pop all regs         | <---+  | ...                  | |
+        |                      |     |  | run old instructions |     |  |                      | |
+        |                      |     +- | jmp back             |     +- |                      | |
+        |                      |        |                      |        +----------------------+ |
+        +----------------------+        +--------------------------------------------------------+
+        '''
+        raise NotImplementedError
+
+    def set_function_hooker(self, target_address: int, empty_address: int, function_codes: bytes):
+        '''
+                target                          empty space
+        +----------------------+        +--------------------------------------------------------+
+        | jmp empty            | ---->  | push all regs        |        function                 |
+        | ...                  | <---+  | call hook function   | -----> +----------------------+ |
+        |                      |     |  | cmp (ret value), 0   | <---+  | ...                  | |
+        |                      |     |  | jeq #CONTINUE        |     |  |                      | |
+        |                      |     |  | pop all regs         |     |  |                      | |
+        |                      |     |  | return               |     |  |                      | |
+        |                      |     |  |CONTINUE:             |     |  |                      | |
+        |                      |     |  | pop all regs         |     |  |                      | |
+        |                      |     |  | run old instructions |     |  |                      | |
+        |                      |     +- | jmp back             |     +- |                      | |
+        |                      |        |                      |        +----------------------+ |
+        +----------------------+        +--------------------------------------------------------+
         '''
         raise NotImplementedError
 
